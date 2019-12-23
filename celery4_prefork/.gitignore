@@ -1,0 +1,3 @@
+bin
+*.pyc
+*.sqlite3

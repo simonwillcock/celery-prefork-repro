@@ -1,0 +1,63 @@
+version: '2.4'
+
+volumes:
+  db_data:
+    driver: local
+
+services:
+  db:
+    image: postgres:9.5
+    command: >
+      postgres
+        -c min_wal_size=1GB
+        -c max_wal_size=3GB
+    environment:
+      - PGPASSWORD=c4
+    volumes:
+      - db_data:/var/lib/postgresql/data:delegated
+    mem_limit: 1024m
+
+  broker:
+    image: tutum/rabbitmq
+    environment:
+      - RABBITMQ_USER=celery4
+      - RABBITMQ_PASS=celery4
+    mem_limit: 256m
+
+  cache:
+    image: redis:latest
+    mem_limit: 1024m
+
+  app:
+    env_file: appvars.env
+    build: .
+    image: celery_repro/prefork:dev
+    command: dev_app
+    init: true
+    volumes:
+      - .:/code:delegated
+      - ~/.ipython:/home/django/.ipython:cached
+    ports:
+      - "127.0.0.1:8000:8000"
+    links:
+      - db
+      - broker
+      - cache
+    mem_limit: 1536m
+    environment:
+      - PYTHONUNBUFFERED="1"
+      - PYTHONIOENCODING="UTF-8"
+
+  worker:
+    env_file: appvars.env
+    image: celery_repro/prefork:dev
+    command: dev_worker
+    volumes:
+      - .:/code:delegated
+    links:
+      - db
+      - broker
+      - cache
+    mem_limit: 1536m
+    environment:
+      - DEBUG=False
